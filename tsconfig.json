@@ -1,10 +1,12 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
+  // "extends": "@tsconfig/node18/tsconfig.json",
   "include": ["index.ts", "utils/**/*"],
   "compilerOptions": {
     "strict": false,
     "resolveJsonModule": true,
-    "moduleResolution": "Bundler",
-    "module": "ESNext"
+    // "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "sourceMap": true,
+    "outDir": "./wow"
   }
 }

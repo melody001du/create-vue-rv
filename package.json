@@ -21,7 +21,9 @@
     "snapshot": "zx ./scripts/snapshot.mjs",
     "pretest": "run-s build snapshot",
     "test": "zx ./scripts/test.mjs",
-    "prepublishOnly": "zx ./scripts/prepublish.mjs"
+    "prepublishOnly": "zx ./scripts/prepublish.mjs",
+    "run": "./outfile.cjs -ignort='typescript router pinia eslint-with-prettier'",
+    "dev": "run-s build run "
   },
   "repository": {
     "type": "git",
@@ -57,5 +59,8 @@
     "*.{js,ts,vue,json}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "typescript": "^5.3.2"
   }
 }

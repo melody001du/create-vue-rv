@@ -1,18 +1,11 @@
 #!/usr/bin/env node
-
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-
-// import minimist from 'minimist'
-const minimist = require('minimist')
-const prompts = require('prompts')
-// import prompts from 'prompts'
+import minimist from 'minimist'
+import prompts from 'prompts'
 import { red, green, bold } from 'kolorist'
-
 import ejs from 'ejs'
-
 import * as banners from './utils/banners'
-
 import renderTemplate from './utils/renderTemplate'
 import { postOrderDirectoryTraverse, preOrderDirectoryTraverse } from './utils/directoryTraverse'
 import generateReadme from './utils/generateReadme'
@@ -20,11 +13,9 @@ import getCommand from './utils/getCommand'
 import getLanguage from './utils/getLanguage'
 import renderEslint from './utils/renderEslint'
 import { FILES_TO_FILTER } from './utils/filterList'
-
 function isValidPackageName(projectName) {
   return /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(projectName)
 }
-
 function toValidPackageName(projectName) {
   return projectName
     .trim()
@@ -33,12 +24,10 @@ function toValidPackageName(projectName) {
     .replace(/^[._]/, '')
     .replace(/[^a-z0-9-~]+/g, '-')
 }
-
-function canSkipEmptying(dir: string) {
+function canSkipEmptying(dir) {
   if (!fs.existsSync(dir)) {
     return true
   }
-
   const files = fs.readdirSync(dir)
   if (files.length === 0) {
     return true
@@ -46,35 +35,27 @@ function canSkipEmptying(dir: string) {
   if (files.length === 1 && files[0] === '.git') {
     return true
   }
-
   return false
 }
-
 function emptyDir(dir) {
   if (!fs.existsSync(dir)) {
     return
   }
-
   postOrderDirectoryTraverse(
     dir,
     (dir) => fs.rmdirSync(dir),
     (file) => fs.unlinkSync(file)
   )
 }
-
 async function init() {
-  // process.stdout.isTTY 是否在终端运行
-  // process.stdout.getColorDepth() 支持的颜色数量
+  console.log()
   console.log(
     process.stdout.isTTY && process.stdout.getColorDepth() > 8
-      ? // banners.gradientBanner 彩色文字
-        banners.gradientBanner
+      ? banners.gradientBanner
       : banners.defaultBanner
   )
   console.log()
-
   const cwd = process.cwd()
-  console.log('@cwd', cwd)
   // possible options:
   // --default
   // --typescript / --ts
@@ -89,11 +70,9 @@ async function init() {
   // --eslint
   // --eslint-with-prettier (only support prettier through eslint for simplicity)
   // --force (for force overwriting)
-
-  // 解析命令行参数
   const argv = minimist(process.argv.slice(2), {
     alias: {
-      typescript: ['ts'], // 别名映射， typescript 还会被映射成 ts
+      typescript: ['ts'],
       'with-tests': ['tests'],
       router: ['vue-router']
     },
@@ -101,9 +80,6 @@ async function init() {
     // all arguments are treated as booleans
     boolean: true
   })
-
-  console.log('@argv', argv)
-
   // if any of the feature flags is set, we would skip the feature prompts
   const isFeatureFlagsUsed =
     typeof (
@@ -119,29 +95,11 @@ async function init() {
       argv.playwright ??
       argv.eslint
     ) === 'boolean'
-
   let targetDir = argv._[0]
-  console.log('@targetDir', targetDir)
   const defaultProjectName = !targetDir ? 'vue-project' : targetDir
-
   const forceOverwrite = argv.force
-  // 根据用户时区语言，拿到对应的预设国际化内容 （locales文件夹下）
   const language = getLanguage()
-
-  let result: {
-    projectName?: string
-    shouldOverwrite?: boolean
-    packageName?: string
-    needsTypeScript?: boolean
-    needsJsx?: boolean
-    needsRouter?: boolean
-    needsPinia?: boolean
-    needsVitest?: boolean
-    needsE2eTesting?: false | 'cypress' | 'nightwatch' | 'playwright'
-    needsEslint?: boolean
-    needsPrettier?: boolean
-  } = {}
-
+  let result = {}
   try {
     // Prompts:
     // - Project name:
@@ -156,7 +114,6 @@ async function init() {
     // - Add Playwright for end-to-end testing?
     // - Add ESLint for code quality?
     // - Add Prettier for code formatting?
-    console.log('@target', targetDir)
     result = await prompts(
       [
         {
@@ -174,7 +131,6 @@ async function init() {
               targetDir === '.'
                 ? language.shouldOverwrite.dirForPrompts.current
                 : `${language.shouldOverwrite.dirForPrompts.target} "${targetDir}"`
-
             return `${dirForPrompt} ${language.shouldOverwrite.message}`
           },
           initial: true,
@@ -191,10 +147,10 @@ async function init() {
           }
         },
         {
-          name: 'packageName', //输入package.json包名，默认和项目名 targetDir 一致
+          name: 'packageName',
           type: () => (isValidPackageName(targetDir) ? null : 'text'),
           message: language.packageName.message,
-          initial: () => toValidPackageName(targetDir), // 不合法的 targetDir 会进行转换
+          initial: () => toValidPackageName(targetDir),
           validate: (dir) => isValidPackageName(dir) || language.packageName.invalidMessage
         },
         {
@@ -300,7 +256,6 @@ async function init() {
     console.log(cancelled.message)
     process.exit(1)
   }
-
   // `initial` won't take effect if the prompt type is null
   // so we still have to assign the default values here
   const {
@@ -315,28 +270,21 @@ async function init() {
     needsEslint = argv.eslint || argv['eslint-with-prettier'],
     needsPrettier = argv['eslint-with-prettier']
   } = result
-
   const { needsE2eTesting } = result
   const needsCypress = argv.cypress || argv.tests || needsE2eTesting === 'cypress'
   const needsCypressCT = needsCypress && !needsVitest
   const needsNightwatch = argv.nightwatch || needsE2eTesting === 'nightwatch'
   const needsNightwatchCT = needsNightwatch && !needsVitest
   const needsPlaywright = argv.playwright || needsE2eTesting === 'playwright'
-
   const root = path.join(cwd, targetDir)
-  console.log('@res target dir', root)
-  // 递归删除文件夹和文件
   if (fs.existsSync(root) && shouldOverwrite) {
     emptyDir(root)
   } else if (!fs.existsSync(root)) {
     fs.mkdirSync(root)
   }
-
   console.log(`\n${language.infos.scaffolding} ${root}...`)
-
   const pkg = { name: packageName, version: '0.0.0' }
   fs.writeFileSync(path.resolve(root, 'package.json'), JSON.stringify(pkg, null, 2))
-
   // todo:
   // work around the esbuild issue that `import.meta.url` cannot be correctly transpiled
   // when bundling for node and the format is cjs
@@ -345,11 +293,10 @@ async function init() {
   const callbacks = []
   const render = function render(templateName) {
     const templateDir = path.resolve(templateRoot, templateName)
-    // renderTemplate(templateDir, root, callbacks)
+    renderTemplate(templateDir, root, callbacks)
   }
   // Render base template
   render('base')
-
   // Add configs.
   if (needsJsx) {
     render('config/jsx')
@@ -380,7 +327,6 @@ async function init() {
   }
   if (needsTypeScript) {
     render('config/typescript')
-
     // Render tsconfigs
     render('tsconfig/base')
     if (needsCypress) {
@@ -402,19 +348,15 @@ async function init() {
       render('tsconfig/nightwatch-ct')
     }
   }
-
   // Render ESLint config
   if (needsEslint) {
     renderEslint(root, { needsTypeScript, needsCypress, needsCypressCT, needsPrettier })
   }
-
   // Render code template.
   // prettier-ignore
-  const codeTemplate =
-    (needsTypeScript ? 'typescript-' : '') +
-    (needsRouter ? 'router' : 'default')
+  const codeTemplate = (needsTypeScript ? 'typescript-' : '') +
+        (needsRouter ? 'router' : 'default');
   render(`code/${codeTemplate}`)
-
   // Render entry file (main.js/ts).
   if (needsPinia && needsRouter) {
     render('entry/router-and-pinia')
@@ -425,16 +367,13 @@ async function init() {
   } else {
     render('entry/default')
   }
-
   // An external data store for callbacks to share data
   const dataStore = {}
   // Process callbacks
   for (const cb of callbacks) {
     await cb(dataStore)
   }
-
   // EJS template rendering
-  // 从生成的 root 目录开始渲染 EJS 模版
   preOrderDirectoryTraverse(
     root,
     () => {},
@@ -443,21 +382,17 @@ async function init() {
         const template = fs.readFileSync(filepath, 'utf-8')
         const dest = filepath.replace(/\.ejs$/, '')
         const content = ejs.render(template, dataStore[dest])
-
         fs.writeFileSync(dest, content)
         fs.unlinkSync(filepath)
       }
     }
   )
-
   // Cleanup.
-
   // We try to share as many files between TypeScript and JavaScript as possible.
   // If that's not possible, we put `.ts` version alongside the `.js` one in the templates.
   // So after all the templates are rendered, we need to clean up the redundant files.
   // (Currently it's only `cypress/plugin/index.ts`, but we might add more in the future.)
   // (Or, we might completely get rid of the plugins folder as Cypress 10 supports `cypress.config.ts`)
-
   if (needsTypeScript) {
     // Convert the JavaScript template to the TypeScript
     // Check all the remaining `.js` files:
@@ -465,9 +400,6 @@ async function init() {
     //   - Otherwise, rename the `.js` file to `.ts`
     // Remove `jsconfig.json`, because we already have tsconfig.json
     // `jsconfig.json` is not reused, because we use solution-style `tsconfig`s, which are much more complicated.
-
-    // 转化 js 文件 -> ts 文件 （rename），删除掉原有的 jsconfig.json
-    // 修改 index.html 中的 js 引入
     preOrderDirectoryTraverse(
       root,
       () => {},
@@ -484,14 +416,12 @@ async function init() {
         }
       }
     )
-
     // Rename entry in `index.html`
     const indexHtmlPath = path.resolve(root, 'index.html')
     const indexHtmlContent = fs.readFileSync(indexHtmlPath, 'utf8')
     fs.writeFileSync(indexHtmlPath, indexHtmlContent.replace('src/main.js', 'src/main.ts'))
   } else {
     // Remove all the remaining `.ts` files
-    // 不需要 ts 时 删除掉目录中的 ts 文件
     preOrderDirectoryTraverse(
       root,
       () => {},
@@ -502,15 +432,11 @@ async function init() {
       }
     )
   }
-
   // Instructions:
   // Supported package managers: pnpm > yarn > npm
-  // 确定包管理器: pnpm > yarn > npm
   const userAgent = process.env.npm_config_user_agent ?? ''
   const packageManager = /pnpm/.test(userAgent) ? 'pnpm' : /yarn/.test(userAgent) ? 'yarn' : 'npm'
-
   // README generation
-  // 根据需要的文件生成所有的 README
   fs.writeFileSync(
     path.resolve(root, 'README.md'),
     generateReadme({
@@ -526,34 +452,21 @@ async function init() {
       needsEslint
     })
   )
-
   console.log(`\n${language.infos.done}\n`)
-
-  // 生成项目完成，提示后续辅助工作
-
-  // cd xxx
   if (root !== cwd) {
-    // 假设生成的路径是：/Users/username/Projects/My Project
     const cdProjectName = path.relative(cwd, root)
-    // 则控制台命令会被格式化为cd "My Project"，而不是cd My Project
     console.log(
       `  ${bold(green(`cd ${cdProjectName.includes(' ') ? `"${cdProjectName}"` : cdProjectName}`))}`
     )
   }
-
-  // pnpm|yarn|npm install
   console.log(`  ${bold(green(getCommand(packageManager, 'install')))}`)
-
-  // prettier format
   if (needsPrettier) {
     console.log(`  ${bold(green(getCommand(packageManager, 'format')))}`)
   }
-
-  // npm dev
   console.log(`  ${bold(green(getCommand(packageManager, 'dev')))}`)
   console.log()
 }
-
 init().catch((e) => {
   console.error(e)
 })
+//# sourceMappingURL=index.js.map
